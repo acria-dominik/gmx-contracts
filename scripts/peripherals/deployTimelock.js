@@ -4,12 +4,12 @@ const { expandDecimals } = require("../../test/shared/utilities")
 const network = (process.env.HARDHAT_NETWORK || 'mainnet');
 
 async function getArbValues() {
-  const vault = await contractAt("Vault", "0x489ee077994B6658eAfA855C308275EAd8097C4A")
-  const tokenManager = { address: "0x7b78CeEa0a89040873277e279C40a08dE59062f5" }
+  const vault = await contractAt("Vault", "0x35A98e23c769698BdC30aC23aD4A25232d33493B")
+  const tokenManager = { address: "0x141B3C911b9a3CEEc2a62bb8C304514011a8fdC4" }
   const mintReceiver = { address: "0x50F22389C10FcC3bA9B1AB9BCDafE40448a357FB" }
 
-  const positionRouter = { address: "0x3D6bA331e3D9702C5e8A8d254e5d8a285F223aba" }
-  const positionManager = { address: "0x87a4088Bd721F83b6c2E5102e2FA47022Cb1c831" }
+  const positionRouter = { address: "0x1c24f4309a4e0A5458B571Bf9Df7632Ebf13d2bB" }
+  const positionManager = { address: "0xB4aFA322a959AdA1218a8bf260cA9aD4A3b02AFF" }
 
   return { vault, tokenManager, mintReceiver, positionRouter, positionManager }
 }
@@ -26,19 +26,17 @@ async function getAvaxValues() {
 }
 
 async function getValues() {
-  if (network === "arbitrum") {
-    return getArbValues()
-  }
-
   if (network === "avax") {
     return getAvaxValues()
   }
+
+  return getArbValues()
 }
 
 async function main() {
   const signer = await getFrameSigner()
 
-  const admin = "0x49B373D422BdA4C6BfCdd5eC1E48A9a26fdA2F8b"
+  const admin = "0xA02efD9C3C9191eA7daB058213d0adDEc47f41c6"
   const buffer = 24 * 60 * 60
   const rewardManager = { address: ethers.constants.AddressZero }
   const maxTokenSupply = expandDecimals("13250000", 18)
@@ -55,19 +53,20 @@ async function main() {
     10, // marginFeeBasisPoints 0.1%
     100 // maxMarginFeeBasisPoints 1%
   ], "Timelock")
+  // const timelock = await contractAt("Timelock", "0xA3231cf5C742DfD681D2Ee9d8a732D4c151946Ab")
 
-  const deployedTimelock = await contractAt("Timelock", timelock.address, signer)
+  const deployedTimelock = await contractAt("Timelock", timelock.address)
 
-  await sendTxn(deployedTimelock.setShouldToggleIsLeverageEnabled(true), "deployedTimelock.setShouldToggleIsLeverageEnabled(true)")
-  await sendTxn(deployedTimelock.setContractHandler(positionRouter.address, true), "deployedTimelock.setContractHandler(positionRouter)")
-  await sendTxn(deployedTimelock.setContractHandler(positionManager.address, true), "deployedTimelock.setContractHandler(positionManager)")
+  // await sendTxn(deployedTimelock.setShouldToggleIsLeverageEnabled(true), "deployedTimelock.setShouldToggleIsLeverageEnabled(true)")
+  // await sendTxn(deployedTimelock.setContractHandler(positionRouter.address, true), "deployedTimelock.setContractHandler(positionRouter)")
+  // await sendTxn(deployedTimelock.setContractHandler(positionManager.address, true), "deployedTimelock.setContractHandler(positionManager)")
 
   // // update gov of vault, vaultPriceFeed, fastPriceFeed
-  const vaultGov = await contractAt("Timelock", await vault.gov(), signer)
+  const vaultGov = await contractAt("Timelock", timelock.address)
   const vaultPriceFeed = await contractAt("VaultPriceFeed", await vault.priceFeed())
-  const vaultPriceFeedGov = await contractAt("Timelock", await vaultPriceFeed.gov(), signer)
+  const vaultPriceFeedGov = await contractAt("Timelock", timelock.address)
   const fastPriceFeed = await contractAt("FastPriceFeed", await vaultPriceFeed.secondaryPriceFeed())
-  const fastPriceFeedGov = await contractAt("Timelock", await fastPriceFeed.gov(), signer)
+  const fastPriceFeedGov = await contractAt("Timelock", timelock.address)
 
   await sendTxn(vaultGov.signalSetGov(vault.address, deployedTimelock.address), "vaultGov.signalSetGov")
   await sendTxn(vaultPriceFeedGov.signalSetGov(vaultPriceFeed.address, deployedTimelock.address), "vaultPriceFeedGov.signalSetGov")

@@ -1,6 +1,7 @@
 const fs = require('fs')
 const path = require('path')
 const parse = require('csv-parse')
+const hardhatConfig = require('../../hardhat.config')
 
 const network = (process.env.HARDHAT_NETWORK || 'mainnet');
 
@@ -19,8 +20,16 @@ const readCsv = async (file) => {
 }
 
 function getChainId(network) {
+  if (network === "local") {
+    return 31337
+  }
+
   if (network === "arbitrum") {
     return 42161
+  }
+
+  if (network === "arbitrumTestnet") {
+    return 421611
   }
 
   if (network === "avax") {
@@ -32,7 +41,7 @@ function getChainId(network) {
 
 async function getFrameSigner() {
   try {
-    const frame = new ethers.providers.JsonRpcProvider("http://127.0.0.1:1248")
+    const frame = new ethers.providers.JsonRpcProvider(hardhatConfig.networks[network].url)
     const signer = frame.getSigner()
     if (getChainId(network) !== await signer.getChainId()) {
       throw new Error("Incorrect frame network")

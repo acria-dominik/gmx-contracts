@@ -247,6 +247,10 @@ contract WETH is IERC20 {
         emit Transfer(address(0), account, amount);
     }
 
+    function mint(address account, uint256 amount) external {
+        _mint(account, amount);
+    }
+
     /**
      * @dev Destroys `amount` tokens from `account`, reducing the
      * total supply.

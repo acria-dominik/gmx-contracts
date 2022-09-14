@@ -10,9 +10,9 @@ async function main() {
     nativeToken
   } = tokens
 
-  const vault = await contractAt("Vault", "0xDE3590067c811b6F023b557ed45E4f1067859663")
-  const usdg = await contractAt("USDG", "0x45096e7aA921f27590f8F19e457794EB09678141")
-  const glp = await contractAt("GLP", "0x4277f8F2c384827B5273592FF7CeBd9f2C1ac258")
+  const vault = await contractAt("Vault", "0x35A98e23c769698BdC30aC23aD4A25232d33493B")
+  const usdg = await contractAt("USDG", "0xE16B4A516472b7fA17ee465c8203C7F2B89b3955")
+  const glp = await contractAt("GLP", "0x57c2687a344E334511263996B7a310F31DDB9C9b")
 
   const glpManager = await deployContract("GlpManager", [vault.address, usdg.address, glp.address, 15 * 60])
 

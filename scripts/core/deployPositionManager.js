@@ -8,17 +8,17 @@ const tokens = require('./tokens')[network];
 
 const depositFee = 30 // 0.3%
 
-// TODO: set referral storage
 async function getArbValues() {
   // const signer = await getFrameSigner()
 
-  const vault = await contractAt("Vault", "0x489ee077994B6658eAfA855C308275EAd8097C4A")
+  const vault = await contractAt("Vault", "0x35A98e23c769698BdC30aC23aD4A25232d33493B")
   // const timelock = await contractAt("Timelock", await vault.gov(), signer)
   // const router = await contractAt("Router", "0xaBBc5F99639c9B6bCb58544ddf04EFA6802F4064", signer)
-  const timelock = await contractAt("Timelock", await vault.gov())
-  const router = await contractAt("Router", "0xaBBc5F99639c9B6bCb58544ddf04EFA6802F4064")
+  // const timelock = await contractAt("Timelock", await vault.gov())
+  const router = await contractAt("Router", "0x7c0026013B5Ac0744b94FB394d5707144Bed5178")
   const weth = await contractAt("WETH", tokens.nativeToken.address)
-  const orderBook = await contractAt("OrderBook", "0x09f77E8A13De9a35a7231028187e9fD5DB8a2ACB")
+  const orderBook = await contractAt("OrderBook", "0x7a5dc2a8188bc3F295804ebfC58775BA5bAB80c9")
+  const referralStorage = await contractAt("ReferralStorage", "0xdAFD902C23e8DaAA23f72d18656DC9aD39f00384")
 
   const orderKeeper = { address: "0xd4266F8F82F7405429EE18559e548979D49160F3" }
   const liquidator = { address: "0x44311c91008DDE73dE521cd25136fD37d616802c" }
@@ -44,7 +44,7 @@ async function getArbValues() {
     "0xe98f68F3380c990D3045B4ae29f3BCa0F3D02939", // Jones rDPX Hedging
   ]
 
-  return { vault, timelock, router, weth, depositFee, orderBook, orderKeeper, liquidator, partnerContracts }
+  return { vault, /*timelock,*/ router, weth, depositFee, orderBook, orderKeeper, liquidator, partnerContracts, referralStorage }
 }
 
 async function getAvaxValues() {
@@ -65,25 +65,24 @@ async function getAvaxValues() {
 }
 
 async function getValues() {
-  if (network === "arbitrum") {
-    return getArbValues()
-  }
-
   if (network === "avax") {
     return getAvaxValues()
   }
+
+  return getArbValues()
 }
 
 async function main() {
-  const { vault, timelock, router, weth, depositFee, orderBook, orderKeeper, liquidator, partnerContracts } = await getValues()
+  const { vault, /*timelock,*/ router, weth, depositFee, orderBook, orderKeeper, liquidator, partnerContracts, referralStorage } = await getValues()
 
-  // const positionManager = await deployContract("PositionManager", [vault.address, router.address, weth.address, depositFee, orderBook.address])
-  const positionManager = await contractAt("PositionManager", "0x87a4088Bd721F83b6c2E5102e2FA47022Cb1c831")
-  // await sendTxn(positionManager.setOrderKeeper(orderKeeper.address, true), "positionManager.setOrderKeeper(orderKeeper)")
-  // await sendTxn(positionManager.setLiquidator(liquidator.address, true), "positionManager.setLiquidator(liquidator)")
+  const positionManager = await deployContract("PositionManager", [vault.address, router.address, weth.address, depositFee, orderBook.address])
+  // const positionManager = await contractAt("PositionManager", "0x87a4088Bd721F83b6c2E5102e2FA47022Cb1c831")
+  await sendTxn(positionManager.setOrderKeeper(orderKeeper.address, true), "positionManager.setOrderKeeper(orderKeeper)")
+  await sendTxn(positionManager.setLiquidator(liquidator.address, true), "positionManager.setLiquidator(liquidator)")
+  await sendTxn(positionManager.setReferralStorage(referralStorage.address), "positionManager.setReferralStorage")
   // await sendTxn(timelock.setContractHandler(positionManager.address, true), "timelock.setContractHandler(positionRouter)")
   // await sendTxn(timelock.setLiquidator(vault.address, positionManager.address, true), "timelock.setLiquidator(vault, positionManager, true)")
-  // await sendTxn(router.addPlugin(positionManager.address), "router.addPlugin(positionManager)")
+  await sendTxn(router.addPlugin(positionManager.address), "router.addPlugin(positionManager)")
 
   for (let i = 0; i < partnerContracts.length; i++) {
     const partnerContract = partnerContracts[i]
