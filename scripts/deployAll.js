@@ -4,7 +4,7 @@ NATIVE_TOKEN: "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
 */
 
 const { getFrameSigner, deployContract, sendTxn } = require("./shared/helpers")
-const { expandDecimals } = require("./../test/shared/utilities")
+const { expandDecimals, maxUint256 } = require("./../test/shared/utilities")
 const { toUsd } = require("./../test/shared/units")
 const { errors } = require("./../test/core/Vault/helpers")
 
@@ -37,31 +37,25 @@ async function deployAll() {
 
   const btc = await deployContract("FaucetToken", ["Bitcoin", "BTC", 8, expandDecimals(1000, 18)]);
   const btcPriceFeed = await deployContract("PriceFeed", [])
-  await btcPriceFeed.setLatestAnswer(300 * Math.pow(10, 8))
+  await sendTxn(await btcPriceFeed.setLatestAnswer(10000 * Math.pow(10, 8)), 'btcPriceFeed.setLatestAnswer: 10000')
   await vaultPriceFeed.setTokenConfig(btc.address, btcPriceFeed.address, 8, false)
   await vault.setTokenConfig(btc.address, 8, 27000, 0, expandDecimals(50 * 1000 *1000, 18), false, true)
   // await vault.setTokenConfig(token.address, token.decimals, token.tokenWeight, token.minProfitBps, expandDecimals(token.maxUsdgAmount, 18), token.isStable, token.isShortable)
 
   const wethPriceFeed = await deployContract("PriceFeed", [])
-  await wethPriceFeed.setLatestAnswer(1500 * Math.pow(10, 8))
+  await sendTxn(await wethPriceFeed.setLatestAnswer(2500 * Math.pow(10, 8)), 'wethPriceFeed.setLatestAnswer: 2500')
   await vaultPriceFeed.setTokenConfig(nativeToken.address, wethPriceFeed.address, 8, false)
-  await vault.setTokenConfig(nativeToken.address, 8, 28000, 0, expandDecimals(120 * 1000 * 1000, 18), false, true)
-
-  const eth = await deployContract("FaucetToken", ["Ethereum", "ETH", 18, expandDecimals(1000, 18)]);
-  const ethPriceFeed = await deployContract("PriceFeed", [])
-  await ethPriceFeed.setLatestAnswer(1500 * Math.pow(10, 8))
-  await vaultPriceFeed.setTokenConfig(eth.address, ethPriceFeed.address, 8, false)
-  await vault.setTokenConfig(eth.address, 8, 28000, 0, expandDecimals(120 * 1000 * 1000, 18), false, true)
+  await vault.setTokenConfig(nativeToken.address, 18, 28000, 0, expandDecimals(120 * 1000 * 1000, 18), false, true)
 
   const usdc = await deployContract("FaucetToken", ["USDC Coin", "USDC", 6, expandDecimals(1000, 18)]);
   const usdcPriceFeed = await deployContract("PriceFeed", [])
-  await usdcPriceFeed.setLatestAnswer(1 * Math.pow(10, 8))
+  await sendTxn(await usdcPriceFeed.setLatestAnswer(1 * Math.pow(10, 8)), 'usdcPriceFeed.setLatestAnswer: 1')
   await vaultPriceFeed.setTokenConfig(usdc.address, usdcPriceFeed.address, 8, true)
   await vault.setTokenConfig(usdc.address, 6, 32000, 0, expandDecimals(120 * 1000 * 1000, 18), true, false)
 
   const usdt = await deployContract("FaucetToken", ["Tether", "USDT", 6, expandDecimals(1000, 18)]);
   const usdtPriceFeed = await deployContract("PriceFeed", [])
-  await usdtPriceFeed.setLatestAnswer(1 * Math.pow(10, 8))
+  await sendTxn(await usdtPriceFeed.setLatestAnswer(1 * Math.pow(10, 8)), 'usdtPriceFeed.setLatestAnswer: 1')
   await vaultPriceFeed.setTokenConfig(usdt.address, usdtPriceFeed.address, 8, true)
   await vault.setTokenConfig(usdt.address, 6, 3000, 0, expandDecimals(10 * 1000 * 1000, 18), true, false)
 
@@ -72,8 +66,7 @@ async function deployAll() {
   const glp = await deployContract("GLP", [])
   await sendTxn(glp.setInPrivateTransferMode(true), "glp.setInPrivateTransferMode")
 
-  const glpManager = await deployContract("GlpManager", [vault.address, usdg.address, glp.address, 15 * 60])
-  await sendTxn(glpManager.setInPrivateMode(true), "glpManager.setInPrivateMode")
+  const glpManager = await deployContract("GlpManager", [vault.address, usdg.address, glp.address, 1 * 60]) // Todo: Change Cooldown back to 15 min
 
   await sendTxn(glp.setMinter(glpManager.address, true), "glp.setMinter")
   await sendTxn(usdg.addVault(glpManager.address), "usdg.addVault(glpManager)")
@@ -83,15 +76,15 @@ async function deployAll() {
   await sendTxn(vault.setManager(glpManager.address, true), "vault.setManager")
 
   await sendTxn(vault.setFees(
-    10, // _taxBasisPoints
+    50, // _taxBasisPoints
     5, // _stableTaxBasisPoints
-    20, // _mintBurnFeeBasisPoints
-    20, // _swapFeeBasisPoints
+    25, // _mintBurnFeeBasisPoints
+    30, // _swapFeeBasisPoints
     1, // _stableSwapFeeBasisPoints
     10, // _marginFeeBasisPoints
-    toUsd(2), // _liquidationFeeUsd
-    24 * 60 * 60, // _minProfitTime
-    true // _hasDynamicFees
+    toUsd(5), // _liquidationFeeUsd
+    0, // _minProfitTime
+    false // _hasDynamicFees
   ), "vault.setFees")
 
   const vaultErrorController = await deployContract("VaultErrorController", [])
@@ -345,6 +338,60 @@ async function deployAll() {
 
   await sendTxn(timelock.setContractHandler(orderExecutor.address, true), "timelock.setContractHandler(orderExecutor)")
 
+
+  /*********************************************/
+  /**************** DEPLOY FARMS ***************/
+  /*********************************************/
+
+  // const xgmt = await deployContract("YieldToken", ["xGambit", "xGMT", expandDecimals(100 * 1000, 18)])
+  // const gmtUsdgPair = { address: "0xa41e57459f09a126F358E118b693789d088eA8A0" }
+  // const gmtUsdgFarm = await deployContract("YieldFarm", ["GMT-USDG Farm", "GMT-USDG:FARM", gmtUsdgPair.address], "gmtUsdgFarm")
+
+  // const xgmtUsdgPair = { address: "0x0b622208fc0691C2486A3AE6B7C875b4A174b317" }
+  // const xgmtUsdgFarm = await deployContract("YieldFarm", ["xGMT-USDG Farm", "xGMT-USDG:FARM", xgmtUsdgPair.address], "xgmtUsdgFarm")
+
+  // const usdgYieldTracker = await deployContract("YieldTracker", [usdg.address], "usdgYieldTracker")
+  // const usdgRewardDistributor = await deployContract("TimeDistributor", [], "usdgRewardDistributor")
+
+  // await sendTxn(usdg.setYieldTrackers([usdgYieldTracker.address]), "usdg.setYieldTrackers")
+  // await sendTxn(usdgYieldTracker.setDistributor(usdgRewardDistributor.address), "usdgYieldTracker.setDistributor")
+  // await sendTxn(usdgRewardDistributor.setDistribution([usdgYieldTracker.address], ["0"], [nativeToken.address]), "usdgRewardDistributor.setDistribution")
+
+  // const xgmtYieldTracker = await deployContract("YieldTracker", [xgmt.address], "xgmtYieldTracker")
+  // const xgmtRewardDistributor = await deployContract("TimeDistributor", [], "xgmtRewardDistributor")
+
+  // await sendTxn(xgmt.setYieldTrackers([xgmtYieldTracker.address]), "xgmt.setYieldTrackers")
+  // await sendTxn(xgmtYieldTracker.setDistributor(xgmtRewardDistributor.address), "xgmtYieldTracker.setDistributor")
+  // await sendTxn(xgmtRewardDistributor.setDistribution([xgmtYieldTracker.address], ["0"], [nativeToken.address]), "xgmtRewardDistributor.setDistribution")
+
+  // const gmtUsdgFarmYieldTrackerXgmt = await deployContract("YieldTracker", [gmtUsdgFarm.address], "gmtUsdgFarmYieldTrackerXgmt")
+  // const gmtUsdgFarmDistributorXgmt = await deployContract("TimeDistributor", [], "gmtUsdgFarmDistributorXgmt")
+
+  // await sendTxn(gmtUsdgFarmYieldTrackerXgmt.setDistributor(gmtUsdgFarmDistributorXgmt.address), "gmtUsdgFarmYieldTrackerXgmt.setDistributor")
+  // await sendTxn(gmtUsdgFarmDistributorXgmt.setDistribution([gmtUsdgFarmYieldTrackerXgmt.address], ["0"], [xgmt.address]), "gmtUsdgFarmDistributorXgmt.setDistribution")
+
+  // const gmtUsdgFarmYieldTrackerWeth = await deployContract("YieldTracker", [gmtUsdgFarm.address], "gmtUsdgFarmYieldTrackerWbnb")
+  // const gmtUsdgFarmDistributorWeth = await deployContract("TimeDistributor", [], "gmtUsdgFarmDistributorWbnb")
+
+  // await sendTxn(gmtUsdgFarmYieldTrackerWeth.setDistributor(gmtUsdgFarmDistributorWeth.address), "gmtUsdgFarmYieldTrackerWbnb.setDistributor")
+  // await sendTxn(gmtUsdgFarmDistributorWeth.setDistribution([gmtUsdgFarmYieldTrackerWeth.address], ["0"], [nativeToken.address]), "gmtUsdgFarmDistributorWbnb.setDistribution")
+
+  // await sendTxn(gmtUsdgFarm.setYieldTrackers([gmtUsdgFarmYieldTrackerXgmt.address, gmtUsdgFarmYieldTrackerWeth.address]), "gmtUsdgFarm.setYieldTrackers")
+
+  // const xgmtUsdgFarmYieldTrackerXgmt = await deployContract("YieldTracker", [xgmtUsdgFarm.address], "xgmtUsdgFarmYieldTrackerXgmt")
+  // const xgmtUsdgFarmDistributorXgmt = await deployContract("TimeDistributor", [], "xgmtUsdgFarmDistributorXgmt")
+
+  // await sendTxn(xgmtUsdgFarmYieldTrackerXgmt.setDistributor(xgmtUsdgFarmDistributorXgmt.address), "xgmtUsdgFarmYieldTrackerXgmt.setDistributor")
+  // await sendTxn(xgmtUsdgFarmDistributorXgmt.setDistribution([xgmtUsdgFarmYieldTrackerXgmt.address], ["0"], [xgmt.address]), "xgmtUsdgFarmDistributorXgmt.setDistribution")
+
+  // const xgmtUsdgFarmYieldTrackerWeth = await deployContract("YieldTracker", [xgmtUsdgFarm.address], "xgmtUsdgFarmYieldTrackerWbnb")
+  // const xgmtUsdgFarmDistributorWeth = await deployContract("TimeDistributor", [], "xgmtUsdgFarmDistributorWbnb")
+
+  // await sendTxn(xgmtUsdgFarmYieldTrackerWeth.setDistributor(xgmtUsdgFarmDistributorWeth.address), "xgmtUsdgFarmYieldTrackerWbnb.setDistributor")
+  // await sendTxn(xgmtUsdgFarmDistributorWeth.setDistribution([xgmtUsdgFarmYieldTrackerWeth.address], ["0"], [nativeToken.address]), "gmtUsdgFarmDistributorWbnb.setDistribution")
+
+  // await sendTxn(xgmtUsdgFarm.setYieldTrackers([xgmtUsdgFarmYieldTrackerXgmt.address, xgmtUsdgFarmYieldTrackerWeth.address]), "xgmtUsdgFarm.setYieldTrackers")
+
   /*********************************************/
   /************** POSITION ROUTER **************/
   /*********************************************/
@@ -387,6 +434,46 @@ async function deployAll() {
     const partnerContract = partnerContracts[i]
     await sendTxn(positionManager.setPartner(partnerContract, true), "positionManager.setPartner(partnerContract)")
   }
+
+  /*********************************************/
+  /***************** MINT TOKENS ***************/
+  /*********************************************/
+
+  await sendTxn(await btc.mint(timelockAdminAddress, expandDecimals(100, 8)), 'btc.mint')
+  await sendTxn(await nativeToken.mint(timelockAdminAddress, expandDecimals(50, 18)), 'nativeToken.mint')
+  await sendTxn(await usdc.mint(timelockAdminAddress, expandDecimals(5000, 6)), 'usdc.mint')
+  await sendTxn(await usdt.mint(timelockAdminAddress, expandDecimals(10000, 6)), 'usdt.mint')
+
+  /*********************************************/
+  /**************** ADD LIQUIDITY **************/
+  /*********************************************/
+
+  await sendTxn(await btc.approve(glpManager.address, maxUint256), 'btc.approve')
+  await sendTxn(await rewardRouter.mintAndStakeGlp(btc.address, expandDecimals(100, 8), 0, 0), "rewardRouter.mintAndStakeGlpETH: btc")
+
+  await sendTxn(await nativeToken.approve(glpManager.address, maxUint256), 'weth.approve')
+  await sendTxn(await rewardRouter.mintAndStakeGlp(nativeToken.address, expandDecimals(50, 18), 0, 0), "rewardRouter.mintAndStakeGlpETH: weth")
+
+  await sendTxn(await usdc.approve(glpManager.address, maxUint256), 'usdc.approve')
+  await sendTxn(await rewardRouter.mintAndStakeGlp(usdc.address, expandDecimals(5000, 6), 0, 0), "rewardRouter.mintAndStakeGlpETH: usdc")
+
+  await sendTxn(await usdt.approve(glpManager.address, maxUint256), 'usdt.approve')
+  await sendTxn(await rewardRouter.mintAndStakeGlp(usdt.address, expandDecimals(5000, 6), 0, 0), "rewardRouter.mintAndStakeGlpETH: usdt")
+
+  await sendTxn(await glpManager.setInPrivateMode(true), 'glpManager.setInPrivateMode(true)')
+
+  /*********************************************/
+  /******************* TOKENS ******************/
+  /*********************************************/
+
+  console.log('Tokens:');
+  console.log();
+  console.log(`BTC: "${btc.address}"`);
+  // console.log(`ETH: "${eth.address}"`);
+  console.log(`WETH: "${nativeToken.address}"`);
+  console.log(`USDC: "${usdc.address}"`);
+  console.log(`USDT: "${usdt.address}"`);
+  console.log();
 
   /*********************************************/
   /****************** ADDRESSES ****************/
